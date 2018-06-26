@@ -293,7 +293,7 @@ class Updater
 			if (!unlink($dump_file . '_filepointer')) echo "Ошибка во время удаления " . $dump_file . '_filepointer<br/>';
 			if (!unlink($dump_file)) echo "Ошибка во время удаления " . $dump_file . '<br/>';
 		}
-		if (!unlink(dirname(__FILE__) . '/db_updater.php')) echo "Ошибка во время удаления " . dirname(__FILE__) . '/db_updater.php<br/>';
+		if (!unlink(dirname(__FILE__) . '/db_toolkit.php')) echo "Ошибка во время удаления " . dirname(__FILE__) . '/db_toolkit.php<br/>';
 		echo "Удаление завершено";
 	}
 
