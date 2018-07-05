@@ -23,7 +23,7 @@ if (!empty($command))
 
 			$this->switchOffBuffering();
 
-			if (file_exists(dirname(__FILE__) . '/configuration1.php'))
+			if (file_exists(dirname(__FILE__) . '/configuration.php'))
 			{
 				require_once dirname(__FILE__) . '/configuration.php';
 
