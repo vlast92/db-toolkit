@@ -7,7 +7,9 @@
  * @license     A "Slug" license name e.g. GPL2
  */
 
-require_once dirname(__FILE__) . '/configuration.php';
+if(file_exists(dirname(__FILE__) . '/configuration.php')){
+	require_once dirname(__FILE__) . '/configuration.php';
+}
 
 header('Content-Type: text/html; charset=UTF-8');
 mb_internal_encoding("UTF-8");
@@ -17,7 +19,7 @@ class Updater
 
 	private $config, $mysqli;
 
-	function __construct()
+	function __construct($host = false, $user = false, $pass = false, $db = false)
 	{
 		ob_start();
 
@@ -25,7 +27,7 @@ class Updater
 
 		$this->config = new JConfig();
 
-		$this->connect_mysql();
+		$this->connect_mysql($host, $user, $pass, $db);
 	}
 
 	/**
@@ -60,13 +62,18 @@ class Updater
 	/*
     * Подключение к mysql
     * */
-	private function connect_mysql()
+	private function connect_mysql($host, $user, $pass, $db)
 	{
-		$this->mysqli = new mysqli($this->config->host, $this->config->user, $this->config->password, $this->config->db);
+	    if(!$host) $host = $this->config->host;
+	    if(!$user) $user = $this->config->user;
+	    if(!$pass) $pass = $this->config->password;
+	    if(!$db) $db = $this->config->db;
+
+		$this->mysqli = new mysqli($host, $user, $pass, $db);
 		$this->mysqli->query("SET NAMES 'utf8';");
 		$this->mysqli->query("SET CHARACTER SET 'utf8';");
 		$this->mysqli->query("SET SESSION collation_connection = 'utf8_general_ci';");
-		$this->mysqli->select_db($this->config->db);
+		$this->mysqli->select_db($db);
 
 		if ($this->mysqli->connect_errno)
 		{
@@ -304,7 +311,7 @@ class Updater
 	}
 }
 
-$updater = new Updater();
+$updater = new Updater($_POST['host'], $_POST['user'], $_POST['pass'], $_POST['db']);
 
 $command        = $_POST['command'];
 $filename       = $_POST['filename'];
@@ -355,6 +362,21 @@ switch ($command)
     <input id="delete_files" type="button" name="delete_files" value="Удалить файлы скрипта"/>
     <input id="command" type="hidden" name="command" value="0"/>
     <input id="dump_file" type="hidden" name="dump_file" value="0"/>
+    <br/>
+    <br/>
+    <div>Данные базы данных (если оставить пустыми, то будут использованы данные из конфигурационного файла Joomla</div>
+    <label>Хост
+        <input type="text" name="host"/>
+    </label>
+    <label>Имя пользователя
+        <input type="text" name="user"/>
+    </label>
+    <label>Пароль
+        <input type="text" name="pass"/>
+    </label>
+    <label>Имя базы данных
+        <input type="text" name="db"/>
+    </label>
 </form>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
