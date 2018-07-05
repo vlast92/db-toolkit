@@ -7,342 +7,353 @@
  * @license     A "Slug" license name e.g. GPL2
  */
 
-if(file_exists(dirname(__FILE__) . '/configuration.php')){
-	require_once dirname(__FILE__) . '/configuration.php';
-}
-
 header('Content-Type: text/html; charset=UTF-8');
 mb_internal_encoding("UTF-8");
 
-class Updater
+$command = $_POST['command'];
+if (!empty($command))
 {
-
-	private $config, $mysqli;
-
-	function __construct($host = false, $user = false, $pass = false, $db = false)
+	class Updater
 	{
-		ob_start();
+		private $config, $mysqli;
 
-		$this->switchOffBuffering();
-
-		$this->config = new JConfig();
-
-		$this->connect_mysql($host, $user, $pass, $db);
-	}
-
-	/**
-	 * Перейти в режим отключённой буферизации
-	 * @since 1.0
-	 *
-	 * @param boolean $closeSession
-	 * Сохранить и закрыть сессию.
-	 * Нужно, если скрипт долгоиграющий, и вы не хотите,
-	 * тобы, пока он работает, у вас заклинивало весь остальной сайт.
-	 */
-	private function switchOffBuffering($closeSession = true)
-	{
-		if ($closeSession)
+		function __construct($host = false, $user = false, $pass = '', $db = false)
 		{
-			//Сохраним и закроем сессию, если надо.
-			session_write_close();
-		}
-		//Сообщим серверу и браузеру, что кэшировать выдачу не надо.
-		header('Cache-Control: no-cache, must-revalidate');
-		//Сообщим серверу Nginx, что буферизировать не надо
-		header('X-Accel-Buffering: no');
-		//Включим автоматический сброс буфера при каждом выводе
-		ob_implicit_flush(true);
-		//Сбросим все уровни буферов PHP, созданные на данный момент.
-		while (ob_get_level() > 0)
-		{
-			ob_end_flush();
-		}
-	}
+			ob_start();
 
-	/*
-    * Подключение к mysql
-    * */
-	private function connect_mysql($host, $user, $pass, $db)
-	{
-	    if(!$host) $host = $this->config->host;
-	    if(!$user) $user = $this->config->user;
-	    if(!$pass) $pass = $this->config->password;
-	    if(!$db) $db = $this->config->db;
+			$this->switchOffBuffering();
 
-		$this->mysqli = new mysqli($host, $user, $pass, $db);
-		$this->mysqli->query("SET NAMES 'utf8';");
-		$this->mysqli->query("SET CHARACTER SET 'utf8';");
-		$this->mysqli->query("SET SESSION collation_connection = 'utf8_general_ci';");
-		$this->mysqli->select_db($db);
-
-		if ($this->mysqli->connect_errno)
-		{
-			exit("Не удалось подключиться к MySQL: " . $this->mysqli->connect_error);
-		}
-	}
-
-	/*
-	 * Возвращает имена таблиц базы данных
-    * */
-	public function returnTablesNames()
-	{
-		$tables_names = null;
-
-		$query = "SHOW TABLES FROM " . $this->config->db . ";";
-
-		if ($result = $this->mysqli->query($query))
-		{
-			/* выборка данных и помещение их в массив */
-			$i = 0;
-			while ($row = $result->fetch_row())
+			if (file_exists(dirname(__FILE__) . '/configuration1.php'))
 			{
-				$tables_names[$i++] = $row[0];
+				require_once dirname(__FILE__) . '/configuration.php';
+
+				$this->config = new JConfig();
+			}
+            elseif (!$host || !$user || !$db)
+			{
+				die("Не заданы данные для подключения к базе данных.");
+			}
+			else
+			{
+				$this->config           = new stdClass();
+				$this->config->host     = $host;
+				$this->config->user     = $user;
+				$this->config->password = $pass;
+				$this->config->db       = $db;
 			}
 
-			/* очищаем результирующий набор */
-			$result->close();
+			$this->connect_mysql();
 		}
-		else exit('Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . mysql_error() . '<br /><br />');
 
-		return $tables_names;
-	}
-
-	/*
-    * Принимает масств имен таблиц
-    * и производит их удаление
-    * */
-	public function deleteTables()
-	{
-		$tables_names = $this->returnTablesNames();
-		if (!empty($tables_names))
+		/**
+		 * Перейти в режим отключённой буферизации
+		 * @since 1.0
+		 *
+		 * @param boolean $closeSession
+		 * Сохранить и закрыть сессию.
+		 * Нужно, если скрипт долгоиграющий, и вы не хотите,
+		 * тобы, пока он работает, у вас заклинивало весь остальной сайт.
+		 */
+		private function switchOffBuffering($closeSession = true)
 		{
-			foreach ($tables_names as $table_name)
+			if ($closeSession)
 			{
-				$query = "DROP TABLE " . $table_name . ";";
-				if ($this->mysqli->query($query))
-				{
-					echo "Таблица $table_name удалена<br/>";
-					ob_flush();
-					flush();
-				}
-				else
-				{
-					exit('Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . $this->mysqli->error . '<br /><br />');
-				}
+				//Сохраним и закроем сессию, если надо.
+				session_write_close();
 			}
-			echo 'Очистка базы данных завершена';
-		}
-		else
-		{
-			echo "Пустая база данных <br/>";
-		}
-	}
-
-	/*
-    * Функция импорта файла в базу данных
-	* Принимает имя файла для импорта
-    * */
-	public function beginImport($filename)
-	{
-		ob_flush();
-		flush();
-
-		$maxRuntime = 8; // less then your max script execution limit
-
-
-		$deadline         = time() + $maxRuntime;
-		$progressFilename = $filename . '_filepointer'; // файл с указателем на выполненый последним запрос
-		$errorFilename    = $filename . '_error'; // файл с текстом ошибки
-
-		($fp = gzopen($filename, 'r')) OR die('Ошибка при открытии файла:' . $filename);
-
-		// проверка на ошибки во время предыдущего импорта
-		if (file_exists($errorFilename))
-		{
-			die('<pre> Предыдущая ошибка: ' . file_get_contents($errorFilename) . '</pre>');
-		}
-
-		// activate automatic reload in browser
-		//echo '<html><head> <meta http-equiv="refresh" content="' . ($maxRuntime + 2) . '"><pre>';
-
-		// переход в позицию из файла - указателя почледнего запроса
-		if (file_exists($progressFilename))
-		{
-			$filePosition = file_get_contents($progressFilename);
-			fseek($fp, $filePosition);
-		}
-
-		$queryCount = 0;
-		$query      = '';
-		while ($deadline > time() AND ($line = fgets($fp, 1024000)))
-		{
-			if (substr($line, 0, 2) == '--' OR trim($line) == '')
+			//Сообщим серверу и браузеру, что кэшировать выдачу не надо.
+			header('Cache-Control: no-cache, must-revalidate');
+			//Сообщим серверу Nginx, что буферизировать не надо
+			header('X-Accel-Buffering: no');
+			//Включим автоматический сброс буфера при каждом выводе
+			ob_implicit_flush(true);
+			//Сбросим все уровни буферов PHP, созданные на данный момент.
+			while (ob_get_level() > 0)
 			{
-				continue;
-			}
-
-			$query .= $line;
-			if (substr(trim($query), -1) == ';')
-			{
-				if (!$this->mysqli->query($query))
-				{
-					$error = 'Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . $this->mysqli->error;
-					file_put_contents($errorFilename, $error . "\n");
-					echo '<pre>' . file_get_contents($errorFilename) . '</pre>';
-					exit;
-				}
-				$query = '';
-				file_put_contents($progressFilename, ftell($fp)); // сохраняем текущую позицию
-				$queryCount++;
+				ob_end_flush();
 			}
 		}
 
-		if (feof($fp))
+		/*
+		* Подключение к mysql
+		* */
+		private function connect_mysql()
 		{
-			echo 'Импорт успешно завершен';
-		}
-		else
-		{
-			echo ftell($fp) . '/' . filesize($filename) . ' ' . (round(ftell($fp) / filesize($filename), 2) * 100) . '%' . "\n";
-			echo $queryCount . ' запросов выполнено! Повторно запустите процедуру импорта!';
-		}
-	}
+			$this->mysqli = new mysqli($this->config->host, $this->config->user,  $this->config->password, $this->config->db);
+			$this->mysqli->query("SET NAMES 'utf8';");
+			$this->mysqli->query("SET CHARACTER SET 'utf8';");
+			$this->mysqli->query("SET SESSION collation_connection = 'utf8_general_ci';");
+			$this->mysqli->select_db($this->config->db);
 
-	/*
-	 * Функция экспорта базы данных
-	 * Принимает имя файла для экспорта
-	 * */
-	public function beginExport($filename, $gz_compression)
-	{
-		$target_tables = null;
-		$content       = "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";";
-		$content       .= "\n\n\n-- ---------------------------------------------------";
-		$content       .= "\n-- ------База данных: `" . $this->config->db . "`";
-		$content       .= "\n-- ---------------------------------------------------";
-		$content       .= "\n-- ---------------------------------------------------";
-
-		$backup_name = $filename;
-
-		$target_tables = $this->returnTablesNames();
-
-		foreach ($target_tables as $table)
-		{
-			$result        = $this->mysqli->query('SELECT * FROM ' . $table);
-			$fields_amount = $result->field_count;
-			$rows_num      = $this->mysqli->affected_rows;
-			$res           = $this->mysqli->query('SHOW CREATE TABLE ' . $table);
-			$TableMLine    = $res->fetch_row();
-			$content       .= "\n\n--\n-- Структура таблицы - " . $table . "\n--";
-			$content       .= "\n\nDROP TABLE IF EXISTS " . $table . ";" . "\n\n" . $TableMLine[1] . ";\n\n";
-
-			for ($i = 0, $st_counter = 0; $i < $fields_amount; $i++, $st_counter = 0)
+			if ($this->mysqli->connect_errno)
 			{
+				exit("Не удалось подключиться к MySQL: " . $this->mysqli->connect_error);
+			}
+		}
+
+		/*
+		 * Возвращает имена таблиц базы данных
+		* */
+		public function returnTablesNames()
+		{
+			$tables_names = null;
+
+			$query = "SHOW TABLES FROM " . $this->config->db . ";";
+
+			if ($result = $this->mysqli->query($query))
+			{
+				/* выборка данных и помещение их в массив */
+				$i = 0;
 				while ($row = $result->fetch_row())
-				{ //when started (and every after 100 command cycle):
-					if ($st_counter % 100 == 0 || $st_counter == 0)
+				{
+					$tables_names[$i++] = $row[0];
+				}
+
+				/* очищаем результирующий набор */
+				$result->close();
+			}
+			else exit('Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . mysql_error() . '<br /><br />');
+
+			return $tables_names;
+		}
+
+		/*
+		* Принимает масств имен таблиц
+		* и производит их удаление
+		* */
+		public function deleteTables()
+		{
+			$tables_names = $this->returnTablesNames();
+			if (!empty($tables_names))
+			{
+				foreach ($tables_names as $table_name)
+				{
+					$query = "DROP TABLE " . $table_name . ";";
+					if ($this->mysqli->query($query))
 					{
-						$content .= "\nINSERT INTO " . $table . " VALUES";
-					}
-					$content .= "\n(";
-					for ($j = 0; $j < $fields_amount; $j++)
-					{
-						$row[$j] = str_replace("\n", "\\n", addslashes($row[$j]));
-						if (isset($row[$j]))
-						{
-							$content .= '"' . $row[$j] . '"';
-						}
-						else
-						{
-							$content .= '""';
-						}
-						if ($j < ($fields_amount - 1))
-						{
-							$content .= ',';
-						}
-					}
-					$content .= ")";
-					//every after 100 command cycle [or at last line] ....p.s. but should be inserted 1 cycle eariler
-					if ((($st_counter + 1) % 100 == 0 && $st_counter != 0) || $st_counter + 1 == $rows_num)
-					{
-						$content .= ";";
+						echo "Таблица $table_name удалена<br/>";
+						ob_flush();
+						flush();
 					}
 					else
 					{
-						$content .= ",";
+						exit('Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . $this->mysqli->error . '<br /><br />');
 					}
-					$st_counter = $st_counter + 1;
+				}
+				echo 'Очистка базы данных завершена';
+			}
+			else
+			{
+				echo "Пустая база данных <br/>";
+			}
+		}
+
+		/*
+		* Функция импорта файла в базу данных
+		* Принимает имя файла для импорта
+		* */
+		public function beginImport($filename)
+		{
+			ob_flush();
+			flush();
+
+			$maxRuntime = 8; // less then your max script execution limit
+
+
+			$deadline         = time() + $maxRuntime;
+			$progressFilename = $filename . '_filepointer'; // файл с указателем на выполненый последним запрос
+			$errorFilename    = $filename . '_error'; // файл с текстом ошибки
+
+			($fp = gzopen($filename, 'r')) OR die('Ошибка при открытии файла:' . $filename);
+
+			// проверка на ошибки во время предыдущего импорта
+			if (file_exists($errorFilename))
+			{
+				die('<pre> Предыдущая ошибка: ' . file_get_contents($errorFilename) . '</pre>');
+			}
+
+			// activate automatic reload in browser
+			//echo '<html><head> <meta http-equiv="refresh" content="' . ($maxRuntime + 2) . '"><pre>';
+
+			// переход в позицию из файла - указателя почледнего запроса
+			if (file_exists($progressFilename))
+			{
+				$filePosition = file_get_contents($progressFilename);
+				fseek($fp, $filePosition);
+			}
+
+			$queryCount = 0;
+			$query      = '';
+			while ($deadline > time() AND ($line = fgets($fp, 1024000)))
+			{
+				if (substr($line, 0, 2) == '--' OR trim($line) == '')
+				{
+					continue;
+				}
+
+				$query .= $line;
+				if (substr(trim($query), -1) == ';')
+				{
+					if (!$this->mysqli->query($query))
+					{
+						$error = 'Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . $this->mysqli->error;
+						file_put_contents($errorFilename, $error . "\n");
+						echo '<pre>' . file_get_contents($errorFilename) . '</pre>';
+						exit;
+					}
+					$query = '';
+					file_put_contents($progressFilename, ftell($fp)); // сохраняем текущую позицию
+					$queryCount++;
 				}
 			}
-			$content .= "\n\n\n";
-		}
-		$backup_name = $backup_name ? $backup_name : $this->config->db . ".sql";
-		header('Content-Type: application/octet-stream');
-		header("Content-Transfer-Encoding: Binary");
-		header("Content-disposition: attachment; filename=\"" . $backup_name . "\"");
 
-		if ($gz_compression)
-		{
-			echo gzencode($content);
-			exit;
-		}
-		else
-		{
-			echo $content;
-			exit;
+			if (feof($fp))
+			{
+				echo 'Импорт успешно завершен';
+			}
+			else
+			{
+				echo ftell($fp) . '/' . filesize($filename) . ' ' . (round(ftell($fp) / filesize($filename), 2) * 100) . '%' . "\n";
+				echo $queryCount . ' запросов выполнено! Повторно запустите процедуру импорта!';
+			}
 		}
 
+		/*
+		 * Функция экспорта базы данных
+		 * Принимает имя файла для экспорта
+		 * */
+		public function beginExport($filename, $gz_compression)
+		{
+			$target_tables = null;
+			$content       = "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";";
+			$content       .= "\n\n\n-- ---------------------------------------------------";
+			$content       .= "\n-- ------База данных: `" . $this->config->db . "`";
+			$content       .= "\n-- ---------------------------------------------------";
+			$content       .= "\n-- ---------------------------------------------------";
+
+			$backup_name = $filename;
+
+			$target_tables = $this->returnTablesNames();
+
+			foreach ($target_tables as $table)
+			{
+				$result        = $this->mysqli->query('SELECT * FROM ' . $table);
+				$fields_amount = $result->field_count;
+				$rows_num      = $this->mysqli->affected_rows;
+				$res           = $this->mysqli->query('SHOW CREATE TABLE ' . $table);
+				$TableMLine    = $res->fetch_row();
+				$content       .= "\n\n--\n-- Структура таблицы - " . $table . "\n--";
+				$content       .= "\n\nDROP TABLE IF EXISTS " . $table . ";" . "\n\n" . $TableMLine[1] . ";\n\n";
+
+				for ($i = 0, $st_counter = 0; $i < $fields_amount; $i++, $st_counter = 0)
+				{
+					while ($row = $result->fetch_row())
+					{ //when started (and every after 100 command cycle):
+						if ($st_counter % 100 == 0 || $st_counter == 0)
+						{
+							$content .= "\nINSERT INTO " . $table . " VALUES";
+						}
+						$content .= "\n(";
+						for ($j = 0; $j < $fields_amount; $j++)
+						{
+							$row[$j] = str_replace("\n", "\\n", addslashes($row[$j]));
+							if (isset($row[$j]))
+							{
+								$content .= '"' . $row[$j] . '"';
+							}
+							else
+							{
+								$content .= '""';
+							}
+							if ($j < ($fields_amount - 1))
+							{
+								$content .= ',';
+							}
+						}
+						$content .= ")";
+						//every after 100 command cycle [or at last line] ....p.s. but should be inserted 1 cycle eariler
+						if ((($st_counter + 1) % 100 == 0 && $st_counter != 0) || $st_counter + 1 == $rows_num)
+						{
+							$content .= ";";
+						}
+						else
+						{
+							$content .= ",";
+						}
+						$st_counter = $st_counter + 1;
+					}
+				}
+				$content .= "\n\n\n";
+			}
+			$backup_name = $backup_name ? $backup_name : $this->config->db . ".sql";
+			header('Content-Type: application/octet-stream');
+			header("Content-Transfer-Encoding: Binary");
+			header("Content-disposition: attachment; filename=\"" . $backup_name . "\"");
+
+			if ($gz_compression)
+			{
+				echo gzencode($content);
+				exit;
+			}
+			else
+			{
+				echo $content;
+				exit;
+			}
+
+		}
+
+		public function deleteFiles($dump_file)
+		{
+			if ($dump_file)
+			{
+				if (!unlink($dump_file . '_filepointer')) echo "Ошибка во время удаления " . $dump_file . '_filepointer<br/>';
+				if (!unlink($dump_file)) echo "Ошибка во время удаления " . $dump_file . '<br/>';
+			}
+			if (!unlink(dirname(__FILE__) . '/db_toolkit.php')) echo "Ошибка во время удаления " . dirname(__FILE__) . '/db_toolkit.php<br/>';
+			echo "Удаление завершено";
+		}
+
+		function __destruct()
+		{
+			ob_end_flush();
+			if(!empty($this->mysqli)) $this->mysqli->close();
+		}
 	}
 
-	public function deleteFiles($dump_file)
+	$updater = new Updater($_POST['host'], $_POST['user'], $_POST['pass'], $_POST['db']);
+
+	$filename       = $_POST['filename'];
+	$dump_file      = $_POST['dump_file'];
+	$gz_compression = 0;
+
+	if (!empty($_POST['gz_compression']))
 	{
-		if ($dump_file)
-		{
-			if (!unlink($dump_file . '_filepointer')) echo "Ошибка во время удаления " . $dump_file . '_filepointer<br/>';
-			if (!unlink($dump_file)) echo "Ошибка во время удаления " . $dump_file . '<br/>';
-		}
-		if (!unlink(dirname(__FILE__) . '/db_toolkit.php')) echo "Ошибка во время удаления " . dirname(__FILE__) . '/db_toolkit.php<br/>';
-		echo "Удаление завершено";
+		$filename       .=".sql.gz";
+		$gz_compression = 1;
 	}
-
-	function __destruct()
+	else
 	{
-		ob_end_flush();
-		$this->mysqli->close();
+		$filename .= ".sql";
+	}
+
+	switch ($command)
+	{
+		case 'export':
+			$updater->beginExport($filename, $gz_compression);
+			break;
+		case 'import':
+			$updater->beginImport($filename);
+			break;
+		case 'clear_db':
+			$updater->deleteTables();
+			break;
+		case 'delete_files'    :
+			$updater->deleteFiles($dump_file);
+			break;
 	}
 }
 
-$updater = new Updater($_POST['host'], $_POST['user'], $_POST['pass'], $_POST['db']);
-
-$command        = $_POST['command'];
-$filename       = $_POST['filename'];
-$dump_file      = $_POST['dump_file'];
-$gz_compression = 0;
-
-if (!empty($_POST['gz_compression']))
-{
-	$filename       = $_POST['filename'] . ".sql.gz";
-	$gz_compression = 1;
-}
-else
-{
-	$filename = $_POST['filename'] . ".sql";
-}
-
-switch ($command)
-{
-	case 'export':
-		$updater->beginExport($filename, $gz_compression);
-		break;
-	case 'import':
-		$updater->beginImport($filename);
-		break;
-    case 'clear_db':
-        $updater->deleteTables();
-        break;
-	case 'delete_files'    :
-		$updater->deleteFiles($dump_file);
-		break;
-}
 ?>
 <!DOCTYPE html>
 <html lang="ru">
