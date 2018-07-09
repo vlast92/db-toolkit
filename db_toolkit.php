@@ -119,9 +119,6 @@ if (!empty($command))
 		* */
 		public function beginImport($filename)
 		{
-			ob_flush();
-			flush();
-
 			$maxRuntime = 8; // less then your max script execution limit
 
 
@@ -272,7 +269,9 @@ if (!empty($command))
 		{
 			if ($dump_file)
 			{
-				if (!unlink($dump_file . '_filepointer')) echo "Ошибка во время удаления " . $dump_file . '_filepointer<br/>';
+			    if(file_exists($dump_file . '_filepointer')){
+				    if (!unlink($dump_file . '_filepointer')) echo "Ошибка во время удаления " . $dump_file . '_filepointer<br/>';
+                }
 				if (!unlink($dump_file)) echo "Ошибка во время удаления " . $dump_file . '<br/>';
 			}
 			if (!unlink(dirname(__FILE__) . '/db_toolkit.php')) echo "Ошибка во время удаления " . dirname(__FILE__) . '/db_toolkit.php<br/>';
