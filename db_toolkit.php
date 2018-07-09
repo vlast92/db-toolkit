@@ -19,10 +19,6 @@ if (!empty($command))
 
 		function __construct($host = false, $user = false, $pass = '', $db = false)
 		{
-			ob_start();
-
-			$this->switchOffBuffering();
-
 			if (file_exists(dirname(__FILE__) . '/configuration.php'))
 			{
 				require_once dirname(__FILE__) . '/configuration.php';
@@ -43,35 +39,6 @@ if (!empty($command))
 			}
 
 			$this->connect_mysql();
-		}
-
-		/**
-		 * Перейти в режим отключённой буферизации
-		 * @since 1.0
-		 *
-		 * @param boolean $closeSession
-		 * Сохранить и закрыть сессию.
-		 * Нужно, если скрипт долгоиграющий, и вы не хотите,
-		 * тобы, пока он работает, у вас заклинивало весь остальной сайт.
-		 */
-		private function switchOffBuffering($closeSession = true)
-		{
-			if ($closeSession)
-			{
-				//Сохраним и закроем сессию, если надо.
-				session_write_close();
-			}
-			//Сообщим серверу и браузеру, что кэшировать выдачу не надо.
-			header('Cache-Control: no-cache, must-revalidate');
-			//Сообщим серверу Nginx, что буферизировать не надо
-			header('X-Accel-Buffering: no');
-			//Включим автоматический сброс буфера при каждом выводе
-			ob_implicit_flush(true);
-			//Сбросим все уровни буферов PHP, созданные на данный момент.
-			while (ob_get_level() > 0)
-			{
-				ob_end_flush();
-			}
 		}
 
 		/*
@@ -132,8 +99,6 @@ if (!empty($command))
 					if ($this->mysqli->query($query))
 					{
 						echo "Таблица $table_name удалена<br/>";
-						ob_flush();
-						flush();
 					}
 					else
 					{
@@ -316,7 +281,6 @@ if (!empty($command))
 
 		function __destruct()
 		{
-			ob_end_flush();
 			if(!empty($this->mysqli)) $this->mysqli->close();
 		}
 	}
