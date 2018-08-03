@@ -117,7 +117,7 @@ if (!empty($command))
 		* Функция импорта файла в базу данных
 		* Принимает имя файла для импорта
 		* */
-		public function beginImport($filename)
+		public function beginImport($filename, $gz_compression)
 		{
 			$maxRuntime = 8; // less then your max script execution limit
 
@@ -175,7 +175,18 @@ if (!empty($command))
 			}
 			else
 			{
-				echo ftell($fp) . '/' . filesize($filename) . ' ' . (round(ftell($fp) / filesize($filename), 2) * 100) . '%' . "\n";
+			    $cur_pos = ftell($fp);
+
+			    if($gz_compression){
+				    $handle = fopen($filename, "rb");
+				    fseek($handle, filesize($filename) - 4);
+				    $size = unpack("L", fread($handle, 4));
+				    $end_pos = $size[1];
+                }else{
+				    $end_pos = filesize($filename);
+                }
+
+				echo $cur_pos . '/' . $end_pos . ' ' . (floor($cur_pos / $end_pos * 100)) . '%' . "\n";
 				echo $queryCount . ' запросов выполнено! Повторно запустите процедуру импорта!';
 			}
 		}
@@ -306,7 +317,7 @@ if (!empty($command))
 			$updater->beginExport($filename, $gz_compression);
 			break;
 		case 'import':
-			$updater->beginImport($filename);
+			$updater->beginImport($filename, $gz_compression);
 			break;
 		case 'clear_db':
 			$updater->deleteTables();
