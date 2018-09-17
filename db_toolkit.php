@@ -119,7 +119,7 @@ if (!empty($command))
 		* */
 		public function beginImport($filename, $gz_compression)
 		{
-			$maxRuntime = 8; // less then your max script execution limit
+			$maxRuntime = 20; // less then your max script execution limit
 
 
 			$deadline         = time() + $maxRuntime;
@@ -133,9 +133,6 @@ if (!empty($command))
 			{
 				die('<pre> Предыдущая ошибка: ' . file_get_contents($errorFilename) . '</pre>');
 			}
-
-			// activate automatic reload in browser
-			//echo '<html><head> <meta http-equiv="refresh" content="' . ($maxRuntime + 2) . '"><pre>';
 
 			// переход в позицию из файла - указателя почледнего запроса
 			if (file_exists($progressFilename))
@@ -185,9 +182,11 @@ if (!empty($command))
                 }else{
 				    $end_pos = filesize($filename);
                 }
-
+				// activate automatic reload in browser
+				echo '<html><head> <meta http-equiv="refresh" content="2"></head><body>';
 				echo $cur_pos . '/' . $end_pos . ' ' . (floor($cur_pos / $end_pos * 100)) . '%' . "\n";
-				echo $queryCount . ' запросов выполнено! Повторно запустите процедуру импорта!';
+				echo $queryCount . ' запросов выполнено! Браузер перезагрузится автоматически.';
+				echo '</body></html>';
 			}
 		}
 
