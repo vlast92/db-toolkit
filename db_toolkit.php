@@ -121,7 +121,6 @@ if (!empty($command))
 		{
 			$maxRuntime = 20; // less then your max script execution limit
 
-
 			$deadline         = time() + $maxRuntime;
 			$progressFilename = $filename . '_filepointer'; // файл с указателем на выполненый последним запрос
 			$errorFilename    = $filename . '_error'; // файл с текстом ошибки
@@ -182,11 +181,18 @@ if (!empty($command))
                 }else{
 				    $end_pos = filesize($filename);
                 }
-				// activate automatic reload in browser
-				echo '<html><head> <meta http-equiv="refresh" content="2"></head><body>';
+				// activate automatic reload
 				echo $cur_pos . '/' . $end_pos . ' ' . (floor($cur_pos / $end_pos * 100)) . '%' . "\n";
 				echo $queryCount . ' запросов выполнено! Браузер перезагрузится автоматически.';
-				echo '</body></html>';
+				echo "<script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        window.setTimeout(function(){
+                            
+                            document.getElementById('command').value = 'import';
+                            document.getElementById('controlForm').submit();
+                        }, 2000);
+                    });
+                    </script>";
 			}
 		}
 
@@ -369,12 +375,15 @@ if (!empty($command))
             clearDb_button = document.getElementById('clear_db'),
             delete_button = document.getElementById('delete_files'),
             form = document.getElementById('controlForm'),
-            command_input = document.getElementById("command");
+            command_input = document.getElementById("command"),
+            impotr_filename = getCookie('input_filename');
 
         export_button.addEventListener("click", begin_export);
         import_button.addEventListener("click", begin_import);
         clearDb_button.addEventListener("click", begin_clearing_db);
         delete_button.addEventListener("click", begin_deleting_files);
+
+        if(impotr_filename !== undefined) document.getElementById('filename').value = impotr_filename;
 
         // возвращает cookie с именем name, если есть, если нет, то undefined
         function getCookie(name) {
@@ -427,6 +436,8 @@ if (!empty($command))
                 alert("Введите имя файла");
                 return 0;
             }
+
+            setCookie('input_filename', filename);
 
             if (gz_compression_input.checked) {
                 filename = filename + ".sql.gz";
@@ -483,6 +494,7 @@ if (!empty($command))
             if (!isConfirm) return 0;
 
             deleteCookie('updater_dump_filename');
+            deleteCookie('input_filename');
 
             command_input.value = "delete_files";
             if (dump_file !== undefined) document.getElementById('dump_file').value = dump_file;
