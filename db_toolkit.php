@@ -168,6 +168,9 @@ if (!empty($command))
 			if (feof($fp))
 			{
 				echo 'Импорт успешно завершен';
+				if(file_exists($progressFilename)){
+					if (!unlink($progressFilename)) echo "Ошибка во время удаления " . $progressFilename . '<br/>';
+				}
 			}
 			else
 			{
