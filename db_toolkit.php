@@ -79,7 +79,7 @@ if (!empty($command))
 				/* очищаем результирующий набор */
 				$result->close();
 			}
-			else exit('Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . mysql_error() . '<br /><br />');
+			else exit('Ошибка во время выполнения запроса \'<strong>' . $query . '\': ' . $this->mysqli->error . '<br /><br />');
 
 			return $tables_names;
 		}
@@ -174,16 +174,16 @@ if (!empty($command))
 			}
 			else
 			{
-			    $cur_pos = ftell($fp);
+				$cur_pos = ftell($fp);
 
-			    if($gz_compression){
-				    $handle = fopen($filename, "rb");
-				    fseek($handle, filesize($filename) - 4);
-				    $size = unpack("L", fread($handle, 4));
-				    $end_pos = $size[1];
-                }else{
-				    $end_pos = filesize($filename);
-                }
+				if($gz_compression){
+					$handle = fopen($filename, "rb");
+					fseek($handle, filesize($filename) - 4);
+					$size = unpack("L", fread($handle, 4));
+					$end_pos = $size[1];
+				}else{
+					$end_pos = filesize($filename);
+				}
 				// activate automatic reload
 				echo $cur_pos . '/' . $end_pos . ' ' . (floor($cur_pos / $end_pos * 100)) . '%' . "\n";
 				echo $queryCount . ' запросов выполнено! Браузер перезагрузится автоматически.';
@@ -288,9 +288,9 @@ if (!empty($command))
 		{
 			if ($dump_file)
 			{
-			    if(file_exists($dump_file . '_filepointer')){
-				    if (!unlink($dump_file . '_filepointer')) echo "Ошибка во время удаления " . $dump_file . '_filepointer<br/>';
-                }
+				if(file_exists($dump_file . '_filepointer')){
+					if (!unlink($dump_file . '_filepointer')) echo "Ошибка во время удаления " . $dump_file . '_filepointer<br/>';
+				}
 				if (!unlink($dump_file)) echo "Ошибка во время удаления " . $dump_file . '<br/>';
 			}
 			if (!unlink(dirname(__FILE__) . '/db_toolkit.php')) echo "Ошибка во время удаления " . dirname(__FILE__) . '/db_toolkit.php<br/>';
@@ -391,7 +391,7 @@ if (!empty($command))
         // возвращает cookie с именем name, если есть, если нет, то undefined
         function getCookie(name) {
             let matches = document.cookie.match(new RegExp(
-                "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+                "(?:^|; )" + name.replace(/([.$?*|{}()\[\]\\\/+^])/g, '\\$1') + "=([^;]*)"
             ));
             return matches ? decodeURIComponent(matches[1]) : undefined;
         }
