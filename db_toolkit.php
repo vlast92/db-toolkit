@@ -17,7 +17,10 @@ if (!empty($command))
 	{
 		private $config, $mysqli;
 
-		function __construct($host = false, $user = false, $pass = '', $db = false)
+		/*
+		* Подключение к mysql
+		* */
+		private function connect_mysql($host = false, $user = false, $pass = '', $db = false)
 		{
 			if (file_exists(dirname(__FILE__) . '/configuration.php'))
 			{
@@ -25,9 +28,9 @@ if (!empty($command))
 
 				$this->config = new JConfig();
 			}
-            elseif (!$host || !$user || !$db)
+            		elseif (!$host || !$user || !$db)
 			{
-				die("Не заданы данные для подключения к базе данных.");
+				die('Не заданы данные для подключения к базе данных.');
 			}
 			else
 			{
@@ -38,23 +41,24 @@ if (!empty($command))
 				$this->config->db       = $db;
 			}
 
-			$this->connect_mysql();
-		}
-
-		/*
-		* Подключение к mysql
-		* */
-		private function connect_mysql()
-		{
-			$this->mysqli = new mysqli($this->config->host, $this->config->user,  $this->config->password, $this->config->db);
+			$this->mysqli = new mysqli(
+				$this->config->host,
+				$this->config->user,
+				$this->config->password,
+				$this->config->db
+			);
 			$this->mysqli->query("SET NAMES 'utf8';");
 			$this->mysqli->query("SET CHARACTER SET 'utf8';");
-			$this->mysqli->query("SET SESSION collation_connection = 'utf8_general_ci';");
+			$this->mysqli->query(
+				"SET SESSION collation_connection = 'utf8_general_ci';"
+			);
 			$this->mysqli->select_db($this->config->db);
 
 			if ($this->mysqli->connect_errno)
 			{
-				exit("Не удалось подключиться к MySQL: " . $this->mysqli->connect_error);
+				exit(
+					'Не удалось подключиться к MySQL: ' . $this->mysqli->connect_error
+				);
 			}
 		}
 
@@ -303,7 +307,7 @@ if (!empty($command))
 		}
 	}
 
-	$updater = new Updater($_POST['host'], $_POST['user'], $_POST['pass'], $_POST['db']);
+	$updater = new Updater();
 
 	$filename       = $_POST['filename'];
 	$dump_file      = $_POST['dump_file'];
@@ -322,12 +326,15 @@ if (!empty($command))
 	switch ($command)
 	{
 		case 'export':
+			$updater->connect_mysql($_POST['host'],	$_POST['user'],	$_POST['pass'],	$_POST['db']);
 			$updater->beginExport($filename, $gz_compression);
 			break;
 		case 'import':
+			$updater->connect_mysql($_POST['host'],	$_POST['user'],	$_POST['pass'],	$_POST['db']);
 			$updater->beginImport($filename, $gz_compression);
 			break;
 		case 'clear_db':
+			$updater->connect_mysql($_POST['host'],	$_POST['user'],	$_POST['pass'],	$_POST['db']);
 			$updater->deleteTables();
 			break;
 		case 'delete_files'    :
