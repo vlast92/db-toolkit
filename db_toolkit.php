@@ -366,16 +366,16 @@ if (!empty($command))
     <br/>
     <div>Данные базы данных (если оставить пустыми, то будут использованы данные из конфигурационного файла Joomla</div>
     <label>Хост
-        <input type="text" name="host"/>
+        <input type="text" name="host" value="<?=$_POST['host'];?>"/>
     </label>
     <label>Имя пользователя
-        <input type="text" name="user"/>
+        <input type="text" name="user" value="<?=$_POST['user'];?>"/>
     </label>
     <label>Пароль
-        <input type="text" name="pass"/>
+        <input type="text" name="pass" value="<?=$_POST['pass'];?>"/>
     </label>
     <label>Имя базы данных
-        <input type="text" name="db"/>
+        <input type="text" name="db" value="<?=$_POST['db'];?>"/>
     </label>
 </form>
 <script>
