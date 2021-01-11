@@ -20,7 +20,7 @@ if (!empty($command))
 		/*
 		* Подключение к mysql
 		* */
-		private function connect_mysql($host = false, $user = false, $pass = '', $db = false)
+		public function connect_mysql($host = false, $user = false, $pass = '', $db = false)
 		{
 			if (file_exists(dirname(__FILE__) . '/configuration.php'))
 			{
